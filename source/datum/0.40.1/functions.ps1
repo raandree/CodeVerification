@@ -1,5 +1,6 @@
 function Invoke-Tool
 {
+
 [CmdletBinding(DefaultParameterSetName="DumpCreds")]
 Param(
     [Parameter(Position = 0)]
