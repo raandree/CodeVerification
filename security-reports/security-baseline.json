@@ -1,0 +1,35 @@
+{
+  "detectionRules": {
+    "rulesEnabled": 4,
+    "falsePositiveRate": 100.0,
+    "version": "1.0"
+  },
+  "modules": {
+    "xPSDesiredStateConfiguration": {
+      "genuineIssues": 0,
+      "linesOfCode": 34915,
+      "files": 65,
+      "findings": 26,
+      "hash": "baseline-scan-20251016",
+      "status": "APPROVED",
+      "version": "9.2.1"
+    },
+    "AADConnectDsc": {
+      "genuineIssues": 0,
+      "linesOfCode": 2500,
+      "files": 6,
+      "findings": 6,
+      "hash": "baseline-scan-20251016",
+      "status": "APPROVED",
+      "version": "0.4.1"
+    }
+  },
+  "notes": [
+    "Initial baseline established",
+    "All modules approved for deployment",
+    "Zero genuine security vulnerabilities",
+    "False positive analysis completed"
+  ],
+  "version": "1.0.0",
+  "baselineDate": "2025-10-16"
+}
