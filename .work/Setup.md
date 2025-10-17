@@ -73,8 +73,8 @@ choco install git.install -y
 # Install Visual Studio Code (if not already installed)
 choco install vscode -y
 
-# Note: Uncomment the line below only if you need to reinstall VS Code
-# choco uninstall vscode -y
+# Install PSScriptAnalyzer
+Install-Module -Name PSScriptAnalyzer -Scope AllUsers -Force
 ```
 
 **Additional recommended installations:**
