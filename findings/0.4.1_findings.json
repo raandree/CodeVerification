@@ -1,0 +1,76 @@
+{
+  "Findings": [
+    {
+      "Source": "PSScriptAnalyzer",
+      "RuleId": "PSUseBOMForUnicodeEncodedFile",
+      "RuleName": "PSUseBOMForUnicodeEncodedFile",
+      "Severity": "Medium",
+      "Category": "PSScriptAnalyzer",
+      "File": "E:\\CodeVerification\\source\\AADConnectDsc\\0.4.1\\AADConnectDsc.psm1",
+      "Line": null,
+      "Column": null,
+      "Code": "",
+      "Message": "Missing BOM encoding for non-ASCII encoded file 'AADConnectDsc.psm1'",
+      "Remediation": "See PSScriptAnalyzer documentation for PSUseBOMForUnicodeEncodedFile",
+      "CVSS": 0.0
+    },
+    {
+      "Source": "PSScriptAnalyzer",
+      "RuleId": "PSUseShouldProcessForStateChangingFunctions",
+      "RuleName": "PSUseShouldProcessForStateChangingFunctions",
+      "Severity": "Medium",
+      "Category": "PSScriptAnalyzer",
+      "File": "E:\\CodeVerification\\source\\AADConnectDsc\\0.4.1\\AADConnectDsc.psm1",
+      "Line": 747,
+      "Column": 10,
+      "Code": "New-Guid2",
+      "Message": "Function 'New-Guid2' has verb that could change system state. Therefore, the function has to support 'ShouldProcess'.",
+      "Remediation": "See PSScriptAnalyzer documentation for PSUseShouldProcessForStateChangingFunctions",
+      "CVSS": 0.0
+    },
+    {
+      "Source": "PSScriptAnalyzer",
+      "RuleId": "PSUseShouldProcessForStateChangingFunctions",
+      "RuleName": "PSUseShouldProcessForStateChangingFunctions",
+      "Severity": "Medium",
+      "Category": "PSScriptAnalyzer",
+      "File": "E:\\CodeVerification\\source\\AADConnectDsc\\0.4.1\\AADConnectDsc.psm1",
+      "Line": 1344,
+      "Column": 10,
+      "Code": "Remove-AADConnectDirectoryExtensionAttribute",
+      "Message": "Function 'Remove-AADConnectDirectoryExtensionAttribute' has verb that could change system state. Therefore, the function has to support 'ShouldProcess'.",
+      "Remediation": "See PSScriptAnalyzer documentation for PSUseShouldProcessForStateChangingFunctions",
+      "CVSS": 0.0
+    },
+    {
+      "Source": "PSScriptAnalyzer",
+      "RuleId": "PSUseDeclaredVarsMoreThanAssignments",
+      "RuleName": "PSUseDeclaredVarsMoreThanAssignments",
+      "Severity": "Medium",
+      "Category": "PSScriptAnalyzer",
+      "File": "E:\\CodeVerification\\source\\AADConnectDsc\\0.4.1\\AADConnectDsc.psm1",
+      "Line": 1376,
+      "Column": 13,
+      "Code": "$IsEnabled",
+      "Message": "The variable 'IsEnabled' is assigned but never used.",
+      "Remediation": "See PSScriptAnalyzer documentation for PSUseDeclaredVarsMoreThanAssignments",
+      "CVSS": 0.0
+    }
+  ],
+  "Summary": {
+    "FilesScanned": 6,
+    "ModuleName": "0.4.1",
+    "TotalFindings": 4,
+    "ModulePath": "e:\\CodeVerification\\source\\AADConnectDsc\\0.4.1",
+    "FindingsBySeverity": {
+      "Low": 0,
+      "High": 0,
+      "Medium": 4,
+      "Critical": 0
+    },
+    "ScanDate": "2025-10-17 08:39:09",
+    "FindingsByCategory": {
+      "PSScriptAnalyzer": 4
+    }
+  }
+}
