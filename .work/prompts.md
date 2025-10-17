@@ -62,12 +62,17 @@ Remediation: <Suggestions for remediation>
 CVSS Score: <CVSS Score>
 ```
 
-Important: Report 'High Entropy Detection' with care. If it very likely that we generate a
-lot of false positives.
-
-Report on 'Hardcoded Credentials' only if you actually find hard coded credentials in the code
-or if the code very likely exposes the credentials in an inappropriate way, for example writing
-them to a log file or write them to the console.
+Important notes:
+- Report 'High Entropy Detection' with care. If it very likely that we generate a
+  lot of false positives.
+- Report on 'Hardcoded Credentials' or 'Credential Logging' only if you actually find hard coded
+  credentials in the code or if the code very likely exposes the credentials in an inappropriate 
+  way, for example writing them to a log file or write them to the console.
+- Some cmdlets in PowerShell like `Where-Object` only work when providing a scriptblock. This is not a
+  security flaw and should be taken into account when reporting on 'Script Block Injection'.
+- When looking for 'Character Substitution Obfuscation', please  take into account that for
+  solving string escaping issues in PowerShell, it is required to use character like `'`, `"` or `` ` `` in various orders. Doing this is not necessarily a security issue.
+- 'Hostname or Domain Checks' are expected in code that configures machines. If you think that it is a security issue, please investigate given the context of the code.
 
 ## Prompt 4 - Pending tasks
 
