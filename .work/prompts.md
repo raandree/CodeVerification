@@ -26,7 +26,16 @@ Please also use the PowerShell module `PSScriptAnalyzer` as input. Also scan the
 for additional `PSScriptAnalyzer` rules that are available on GitHub for example in the organization
 https://github.com/dsccommunity.
 
-## Prompt 2.2 - Generate PowerShell security scanning scripts
+## Prompt 2.2 - Realign the detection rules
+
+The source code is PowerShell. In PowerShell it is normal to deal with credentials in a
+semi-secure way.
+
+A rule like 'Sensitive Data in Logs' should be only treated as critical if it effects plaintext passwords, security keys or tokens. Writing user names or IDs to log files is essential for debugging.
+
+A rule like 'High Entropy Strings' should be deemphasized. PowerShell by nature uses high entropy strings to express the intend in code. Findings should be analyzed further for security issues and not treated as critical by default.
+
+## Prompt 2.3 - Generate PowerShell security scanning scripts
 
 Please generate scripts that read the previously defined rules to scan the source code for security
 issues. Also make use of the `PSScriptAnalyzer` and `Pester` to generate the scripts.
@@ -60,10 +69,10 @@ Report on 'Hardcoded Credentials' only if you actually find hard coded credentia
 or if the code very likely exposes the credentials in an inappropriate way, for example writing
 them to a log file or write them to the console.
 
-## Prompt 3 - Pending tasks
+## Prompt 4 - Pending tasks
 
 Review the memory bank for pending tasks and print them out.
 
-## Prompt 4 - Optional tasks
+## Prompt 5 - Optional tasks
 
 Please run also the optional tasks.
