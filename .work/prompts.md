@@ -73,7 +73,7 @@ them to a log file or write them to the console.
 
 Review the memory bank for pending tasks and print them out.
 
-## Prompt 5 - Pending tasks
+## Prompt 5 - Create additional documention
 
 Pleae create a `readme.md` in each folder to describe the content. Also create a comprehensive `readme.md` in the root directory describing the project. The main readme should have references to the other readmes and relevant documentation documents.
 
