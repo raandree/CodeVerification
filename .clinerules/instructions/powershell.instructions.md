@@ -1977,6 +1977,7 @@ Main-Function
 
 ### Sampler Framework (Recommended)
 - ✅ **Project Structure**: Use Sampler's source/, tests/, docs/ folder structure
+- ✅ **File Handling**: Don't pollute them main folder. Use the designated folders and create a new folder if needed but don't do this lightly.
 - ✅ **Build Pipeline**: Implement `.\build.ps1` with InvokeBuild tasks
 - ✅ **Dependencies**: Use RequiredModules.psd1 for dependency management
 - ✅ **Versioning**: Configure GitVersion.yml for semantic versioning
