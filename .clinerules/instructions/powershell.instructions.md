@@ -4,7 +4,19 @@ applyTo: "**/*.ps1,**/*.psm1,**/*.psd1"
 
 # PowerShell Best Practices and Standards
 
-When working with PowerShell code, adhere to the following comprehensive guidelines derived from PSScriptAnalyzer rules, DSC Community standards, and PowerShell community best practices.
+When working with PowerShell code, adhere to the following comprehensive guidelines derived from PSScriptAnalyzer rules, DSC Community standards, and PowerShell community best practices. These guidelines are based on the official DSC Community Style Guidelines (https://dsccommunity.org/styleguidelines/).
+
+## File Encoding
+
+### UTF-8 Encoding
+- **ALWAYS** use UTF-8 encoding (without BOM) for all PowerShell files
+- **Exception**: MOF files should use ASCII encoding
+- Use `ConvertTo-UTF8` and `ConvertTo-ASCII` cmdlets when available
+
+### Line Endings
+- Save newlines using CR+LF (Windows style) for consistency
+- All files must end with a newline character
+- No trailing whitespace after backticks
 
 ## Approved Verbs
 
@@ -30,7 +42,170 @@ function Create-TemporaryFile { }   # Use New-
 function Check-Connection { }       # Use Test-
 ```
 
-## Function Structure
+## Function Structure (DSC Community Standards)
+
+### Function Names
+- **MUST** use PascalCase: `Get-TargetResource`
+- **MUST** use approved Verb-Noun format
+- **MUST** use approved verbs only (from `Get-Verb`)
+- **NO** synonyms: Use `Remove` not `Delete`, `Get` not `Retrieve`
+
+```powershell
+# Correct
+function Get-TargetResource { }
+function Set-Configuration { } 
+function New-Event { }
+
+# Incorrect
+function get-targetresource { }        # Wrong case
+function TargetResourceGetter { }      # Not Verb-Noun format 
+function Normalize-String { }          # Not approved verb, use ConvertTo-
+```
+
+### Comment-Based Help
+- **MANDATORY** for all functions
+- **MUST** include at least SYNOPSIS and PARAMETER sections
+- Use correct syntax directly above function
+
+```powershell
+# Incorrect - Simple comment
+# Creates an event
+function New-Event { }
+
+# Correct - Proper comment-based help
+<#
+    .SYNOPSIS
+        Creates an event
+
+    .PARAMETER Message
+        Message to write
+
+    .PARAMETER Channel
+        Channel where message should be stored
+
+    .EXAMPLE
+        New-Event -Message 'Attempting to connect to server' -Channel 'debug'
+#>
+function New-Event
+{
+    param
+    (
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [String]
+        $Message,
+
+        [Parameter()]
+        [ValidateSet('operational', 'debug', 'analytic')]
+        [String]
+        $Channel = 'operational'
+    )
+    # Implementation
+}
+```
+
+### Parameter Block Requirements
+- **MANDATORY** parameter block for every function
+- **MUST** be at top of function, not next to function name
+- **MUST** display empty parameter block even if no parameters: `param ()`
+
+```powershell
+# Incorrect - Parameters next to function name
+function Write-Text([Parameter(Mandatory = $true)][String]$Text) { }
+
+# Incorrect - No parameter block
+function Write-Nothing
+{
+    Write-Verbose -Message 'Nothing'
+}
+
+# Correct - Proper parameter block placement
+function Write-Text
+{
+    param
+    (
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [String]
+        $Text
+    )
+
+    Write-Verbose -Message $Text
+}
+
+# Correct - Empty parameter block shown
+function Write-Nothing
+{
+    param ()
+
+    Write-Verbose -Message 'Nothing'
+}
+```
+
+### Parameter Formatting Standards
+- **Opening/closing parentheses**: Must be on their own lines for non-empty parameter blocks
+- **Every parameter**: Must include `[Parameter()]` attribute
+- **Mandatory parameters**: Use `[Parameter(Mandatory = $true)]`
+- **Non-mandatory**: Use `[Parameter()]` (no Mandatory decoration)
+- **Parameter separation**: Single blank line between parameters
+- **Type placement**: Parameter type must be on its own line above parameter name
+- **Attribute placement**: Each attribute on separate line
+
+```powershell
+# Correct parameter formatting
+function Write-Text
+{
+    param
+    (
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [String]
+        $Text
+
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]  
+        [String]
+        $PrefixText
+
+        [Parameter()]
+        [Boolean]
+        $AsWarning = $false
+    )
+}
+
+# Incorrect - All on one line  
+function Write-Text
+{
+    param([Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][String] $Text )
+}
+
+# Incorrect - Wrong mandatory syntax
+function Write-Text  
+{
+    param
+    (
+        [Parameter(Mandatory)]              # Should be Mandatory = $true
+        [Parameter(Mandatory = $false)]     # Should omit Mandatory for non-mandatory
+        [String]
+        $Text
+    )
+}
+
+# Incorrect - Missing separation and wrong formatting
+function Write-Text
+{
+    param
+    (
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [String]
+        $Text
+        [Parameter()]                       # Missing blank line above
+        [Boolean]
+        $AsWarning = $false
+    )
+}
+```
 
 ### CmdletBinding Attribute
 - **ALWAYS** use `[CmdletBinding()]` for advanced functions
@@ -128,26 +303,267 @@ function Get-Data {
 [string]$ComputerName
 ```
 
+## Whitespace and Formatting (DSC Community Standards)
+
+### Indentation
+- **ALWAYS** use 4 spaces for indentation, **NEVER** tabs
+- **NO** tab characters allowed in files (except in here-strings)
+
+### Braces and Newlines
+- **Opening braces**: Always on new line for control structures
+- **Closing braces**: Always on their own line
+- **Assignment braces**: Stay on same line as assignment operator
+
+```powershell
+# Correct - Control structures
+if ($booleanValue)
+{
+    Write-Verbose -Message "Boolean is $booleanValue"
+}
+
+# Correct - Assignments  
+$scriptBlockVariable = {
+    Write-Verbose -Message 'Executing script block'
+}
+
+$hashtableVariable = @{
+    Key1 = 'Value1'
+    Key2 = 'Value2'
+}
+
+# Incorrect - Opening brace on same line for control structures
+if ($booleanValue) {
+    Write-Verbose -Message "Boolean is $booleanValue"
+}
+
+# Incorrect - Assignment brace on new line
+$scriptBlockVariable =
+{
+    Write-Verbose -Message 'Executing script block'
+}
+```
+
+### Newline Rules
+- **One newline** before opening braces (except assignments)
+- **One newline** after opening braces
+- **Two newlines** after closing braces (except when followed by another brace)
+- **No more than two** consecutive newlines anywhere
+- **One newline** when followed by another closing brace or continuing conditional/switch
+
+```powershell
+# Correct
+function Get-MyValue
+{
+    Write-Verbose -Message 'Getting MyValue'
+
+    if ($myBoolean)
+    {
+        return $MyValue
+    }
+    else
+    {
+        return 0
+    }
+}
+
+Get-MyValue
+
+# Incorrect - Too many newlines
+function Get-MyValue
+{
+    Write-Verbose -Message 'Getting MyValue'
+
+
+    return $MyValue
+}
+```
+
+### Spacing Rules
+- **One space** between type and variable name: `[Int] $number = 2`
+- **One space** on either side of all operators: `$number = 2 + 4 - 5 * 9 / 6`
+- **One space** between keywords and parentheses: `if ('example' -eq 'example')`
+- **No spaces** inside parentheses: `if ($condition)`
+- **Single space** between array elements: `@('one', 'two', 'three')`
+
+```powershell
+# Correct spacing
+[Int] $number = 2
+$result = $value1 + $value2
+$condition = ($x -eq 5) -and ($y -gt 10)
+if ('example' -eq 'example' -or 'magic')
+foreach ($example in $examples)
+@{ Name = 'Value' }
+$array = @('one', 'two', 'three')
+
+# Incorrect spacing  
+[Int]$number = 2                    # Missing space after type
+$number=2+4-5*9/6                   # Missing spaces around operators
+if('example'-eq'example'-or'magic') # Missing spaces
+foreach($example in $examples)      # Missing space after keyword
+@{Name='Value'}                     # Missing spaces in hashtable
+$array = @('one','two','three')     # Missing spaces after commas
+```
+
+### Array Formatting
+Arrays should follow specific formatting rules:
+
+```powershell
+# Single line arrays (acceptable for short arrays)
+$array = @('one', 'two', 'three')
+
+# Multi-line arrays (preferred for readability)
+$array = @(
+    'one',
+    'two', 
+    'three'
+)
+
+# Alternative multi-line format (also acceptable)
+$array = @(
+    'one'
+    'two'
+    'three'
+)
+
+# Complex arrays with hashtables
+$myArray = @(
+    @{
+        Key1 = Value1
+        Key2 = Value2
+    },
+    @{
+        Key1 = Value1
+        Key2 = Value2
+    }
+)
+
+# Incorrect - Mixed formatting
+$array = @( 'one', `
+'two', `
+'three'
+)
+
+# Incorrect - Multiple elements on same line
+$array = @(
+    'one', 'two', `
+    'my long string example', `
+    'three', 'four'
+)
+```
+
+### Hashtable Formatting
+- Each property on its own line
+- Proper indentation
+- No space between brackets for empty hashtables
+
+```powershell
+# Correct - Empty hashtable
+$hashtable = @{}
+
+# Correct - Single property
+$hashtable = @{
+    Key1 = 'Value1'
+}
+
+# Correct - Multiple properties
+$hashtable = @{
+    Key1 = 'Value1'
+    Key2 = 2
+    Key3 = @{
+        Key3Key1 = 'ExampleText'
+        Key3Key2 = 42
+    }
+}
+
+# Incorrect - Extra space in empty hashtable
+$hashtable = @{
+}
+
+# Incorrect - All on one line
+$hashtable = @{Key1 = 'Value1';Key2 = 2;Key3 = '3'}
+
+# Incorrect - Mixed line formatting
+$hashtable = @{ Key1 = 'Value1'
+Key2 = 2
+Key3 = '3' }
+```
+
 ## Naming Conventions
 
 ### Functions and Cmdlets
-- Use PascalCase for function names: `Get-UserInformation`
-- Use approved Verb-Noun format
-- Nouns should be singular (use `Get-User` not `Get-Users`)
+- **ALWAYS** use PascalCase for function names: `Get-UserInformation`
+- **ALWAYS** use approved Verb-Noun format
+- **ALWAYS** use singular nouns (use `Get-User` not `Get-Users`)
+- Names must be descriptive and clear - minimum 3 characters
+- **NO** abbreviations should be used
+
+#### Examples
+```powershell
+# Correct
+function Get-TargetResource { }
+function Set-Configuration { }
+function New-TemporaryFile { }
+function Test-Connection { }
+
+# Incorrect  
+function Get-TgtRes { }           # Abbreviated
+function Change-Configuration { } # Use Set- not Change-
+function Create-TemporaryFile { } # Use New- not Create-
+function Check-Connection { }     # Use Test- not Check-
+```
 
 ### Variables
-- Use camelCase for local variables: `$userName`, `$connectionString`
-- Use PascalCase for script/module scope variables: `$script:Configuration`
-- Use descriptive names, avoid abbreviations unless well-known
+- **Local variables**: Use camelCase: `$userName`, `$connectionString`
+- **Script variables**: Use camelCase with scope: `$script:fileCount`
+- **Global variables**: Use camelCase with scope: `$global:myResourceName`
+- **Environment variables**: Use camelCase with scope: `$env:computerName`
+- Names must be descriptive and clear - minimum 3 characters
+- **NO** abbreviations should be used
+
+```powershell
+# Good - Descriptive camelCase
+$remoteDesktopSessionHost = Get-RemoteDesktopSessionHost
+$fileCharacterLimit = 42
+$verboseMessage = 'New log message'
+
+# Good - Proper scope usage
+$script:fileCount = 0
+$global:myResourceName = 'MyResource'
+
+# Bad - Abbreviated or unclear
+$r = Get-RdsHost
+$frtytw = 42
+$VerboseMessage = 'New log message'  # Should be camelCase
+$verbosemessage = 'New log message'  # Should be camelCase
+```
+
+### Parameters
+- **ALWAYS** use PascalCase for parameter names: `$SourcePath`, `$UserCredential`
+- Names must be descriptive and clear
+- **NO** abbreviations should be used
 
 ```powershell
 # Good
-$userName = 'JohnDoe'
-$connectionString = 'Server=localhost'
-$maxRetryCount = 3
+param(
+    [Parameter()]
+    $SourcePath,
+    
+    [Parameter()]
+    $myServerToUse
+)
 
-# Avoid
-$un = 'JohnDoe'  # Too abbreviated
+# Bad
+param(
+    [Parameter()]
+    $SOURCEPATH,  # Wrong case
+    
+    [Parameter()]
+    $sourcepath,  # Wrong case
+    
+    [Parameter()]
+    $mySTU        # Abbreviated
+)
+```
 $cs = 'Server=localhost'  # Unclear
 $x = 3  # Non-descriptive
 ```
@@ -165,6 +581,190 @@ enum LogLevel {
     Error
     Critical
 }
+```
+
+)
+
+## String Quotes and Comments (DSC Community Standards)
+
+### Quote Usage Rules
+- **Single quotes**: ALWAYS use for string literals (default choice)
+- **Double quotes**: ONLY use when string contains expressions that need evaluation
+- **Consistency**: Do not mix quote styles unnecessarily
+
+```powershell
+# Correct - Single quotes for literals
+$string = 'String that does not evaluate variables'
+$string = 'String that evaluate variable {0}' -f $SomeObject.SomeProperty
+
+# Correct - Double quotes when variable evaluation needed  
+$string = "String that evaluates variable $($SomeObject.SomeProperty)"
+
+# Correct - Escaping quotes when needed
+$string = 'String that evaluate variable ''{0}''' -f $SomeObject.SomeProperty
+$string = "String that evaluate variable '{0}'" -f $SomeObject.SomeProperty
+
+# Incorrect - Unnecessary double quotes
+$string = "String that does not evaluate variables"
+$string = "String that evaluate variable {0}" -f $SomeObject.SomeProperty
+```
+
+### Comment Formatting Rules
+- **NO** commented-out code in checked-in files
+- **First letter**: Must be capitalized
+- **Single line**: On own line, single `#` followed by single space
+- **Multi-line**: Use `<# #>` format with proper indentation
+- **Indentation**: Comments indented same as following code line
+
+```powershell
+# Correct - Proper comment formatting
+function Get-MyVariable
+{
+    # This is a good comment
+    [CmdletBinding()]
+    param ()
+
+    # This is a good comment
+    foreach ($example in $examples)
+    {
+        # This is a good comment
+        Write-Verbose -Message $example
+    }
+}
+
+# Correct - Multi-line comments
+function Get-MyVariable
+{
+    [CmdletBinding()]
+    param ()
+
+    <#
+        This is a good comment
+        on multiple lines
+    #>
+    foreach ($example in $examples)
+    {
+        Write-Verbose -Message $example
+    }
+}
+
+# Incorrect - Bad comment formatting  
+function Get-MyVariable
+{#this is a bad comment                    # Wrong placement
+    [CmdletBinding()]
+    param ()
+#this is a bad comment                     # Not capitalized, no space
+    foreach ($example in $examples)
+    {
+        Write-Verbose -Message $example #this is a bad comment  # Wrong placement
+    }
+}
+
+# Incorrect - Using single # for multi-line
+function Get-MyVariable
+{
+    [CmdletBinding()]
+    param ()
+
+    # this is a bad comment
+    # On multiple lines
+    foreach ($example in $examples)
+    {
+        # No commented-out code!
+        # Write-Verbose -Message $example
+    }
+}
+```
+
+### PowerShell Keywords
+- **Case**: All PowerShell keywords must be lowercase
+- **Spacing**: Keywords followed by space if non-whitespace follows
+- **Braces**: Keywords followed by curly brace follow "One Newline Before Braces" rule
+
+```powershell
+# PowerShell Keywords (must be lowercase):
+# begin, break, catch, class, continue, data, define, do, dynamicparam, 
+# else, elseif, end, enum, exit, filter, finally, for, foreach, from, 
+# function, hidden, if, in, inlinescript, param, process, return, static, 
+# switch, throw, trap, try, until, using, var, while
+
+# Correct
+foreach ($item in $list)
+begin
+{
+    # Do some work
+}
+
+# Incorrect - Wrong case
+ForEach ($item In $list)  # Should be lowercase
+BEGIN                     # Should be lowercase  
+
+# Incorrect - Missing space  
+foreach($item in $list)   # Missing space after keyword
+
+# Incorrect - Wrong brace placement
+begin {                   # Should have newline before brace
+    # Do some work
+}
+```
+
+## Function Call Standards (DSC Community)
+
+### Named Parameters Required
+- **ALWAYS** use named parameters instead of positional parameters
+- **Improves** readability and maintainability  
+- **Use splatting** for functions with many parameters
+- **All parameters** should be in splat when splatting is used
+
+```powershell
+# Incorrect - Positional parameters
+Get-ChildItem C:\Documents *.md
+
+# Correct - Named parameters
+Get-ChildItem -Path C:\Documents -Filter *.md
+```
+
+### Parameter Splatting Standards
+- Use splatting for long parameter lists
+- Hashtable parameters must follow proper formatting rules
+- All parameters should be in the splat
+
+```powershell
+# Correct - Simple call
+$superLongVariableName = Get-MyVariablePlease -MyStringParameter '123456789012349012345678901234567890' -Verbose
+
+# Correct - Splatting with all parameters
+$getMySuperLongVariablePleaseParameters = @{
+    MySuperLongHashtableParameter = @{
+        MySuperLongKey1 = 'MySuperLongValue1'
+        MySuperLongKey2 = 'MySuperLongValue2'
+    }
+    MySuperLongStringParameter = '123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890'
+    Verbose = $true
+}
+$superLongVariableName = Get-MySuperLongVariablePlease @getMySuperLongVariablePleaseParameters
+
+# Correct - Line continuation with proper hashtable formatting
+$superLongVariableName = Get-MySuperLongVariablePlease `
+    -MySuperLongHashtableParameter @{
+        MySuperLongKey1 = 'MySuperLongValue1'
+        MySuperLongKey2 = 'MySuperLongValue2'
+    } `
+    -MySuperLongStringParameter '123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890' `
+    -Verbose
+
+# Incorrect - Mixed splatting and direct parameters
+$getMySuperLongVariablePleaseParameters = @{
+    MySuperLongHashtableParameter = @{
+        MySuperLongKey1 = 'MySuperLongValue1'
+        MySuperLongKey2 = 'MySuperLongValue2'
+    }
+    MySuperLongStringParameter = '123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890'
+}
+$superLongVariableName = Get-MySuperLongVariablePlease @getMySuperLongVariablePleaseParameters -Verbose
+
+# Incorrect - Poor hashtable formatting
+$superLongVariableName = Get-MySuperLongVariablePlease -MySuperLongHashtableParameter @{ MySuperLongKey1 = 'MySuperLongValue1'; MySuperLongKey2 = 'MySuperLongValue2' } -Verbose
 ```
 
 ## Error Handling
@@ -386,6 +986,188 @@ Write-Debug "Debug information"  # -Debug flag
 Write-Warning "Warning message"  # Always shown
 Write-Error "Error message"  # Always shown
 Write-Information "Informational message"  # PowerShell 5+
+```
+
+## DSC Community Best Practices
+
+### Avoid Hard-coded Computer Names  
+- **NEVER** use hard-coded computer names (security risk)
+- **USE** parameters or environment variables instead
+
+```powershell
+# Incorrect - Hard-coded computer name
+Invoke-Command -Port 0 -ComputerName 'hardcodedName'
+
+# Correct - Use environment variable  
+Invoke-Command -Port 0 -ComputerName $env:computerName
+```
+
+### Avoid Empty Catch Blocks
+- **NEVER** use empty catch blocks
+- **USE** ErrorAction parameter with SilentlyContinue if you want to suppress errors
+- **HANDLE** errors appropriately or let them bubble up
+
+```powershell
+# Incorrect - Empty catch block
+try
+{
+    Get-Command -Name Invoke-NotACommand
+}
+catch {}
+
+# Correct - Suppress with ErrorAction
+Get-Command -Name Invoke-NotACommand -ErrorAction SilentlyContinue
+
+# Correct - Handle the error
+try  
+{
+    Get-Command -Name Invoke-NotACommand
+}
+catch
+{
+    Write-Warning "Command not found: $_"
+}
+```
+
+### Null Comparisons
+- **ALWAYS** place `$null` on the left side of comparisons
+- **Prevents** PowerShell collection comparison issues
+
+```powershell
+# Incorrect - $null on right side
+if ($myArray -eq $null)
+{
+    Remove-AllItems
+}
+
+# Correct - $null on left side  
+if ($null -eq $myArray)
+{
+    Remove-AllItems
+}
+```
+
+### Global Variables  
+- **AVOID** global variables whenever possible
+- **USE** script/local variables or parameters instead
+- **Exception**: `$global:DSCMachineStatus` for DSC resource machine restarts
+
+```powershell
+# Incorrect - Global variable usage
+$global:configurationName = 'MyConfigurationName'
+Set-MyConfiguration -ConfigurationName $global:configurationName
+
+# Correct - Script variable usage
+$script:configurationName = 'MyConfigurationName'  
+Set-MyConfiguration -ConfigurationName $script:configurationName
+```
+
+### Variable Declaration and Usage
+- **NEVER** declare local/script variables unless used more than once
+- **REMOVE** unused variables to reduce code clutter
+
+### Credentials Security
+- **ALWAYS** use PSCredential for credentials
+- **NEVER** use plain text username/password parameters
+
+```powershell
+# Incorrect - Plain text credentials
+function Get-Settings
+{
+    param
+    (
+        [String]
+        $Username
+
+        [String]
+        $Password
+    )
+}
+
+# Correct - PSCredential
+function Get-Settings
+{
+    param
+    (
+        [Parameter()]
+        [PSCredential]
+        [Credential()]
+        $UserCredential
+    )
+}
+```
+
+### Pipeline Usage
+- **LIMIT** pipeline to maximum 1 pipe per line for readability  
+- **USE** variables for complex pipeline operations
+- **PREFER** foreach loops over extensive piping for script clarity
+
+```powershell
+# Incorrect - Too many pipes
+Get-Objects | Where-Object { $_.Property -ieq 'Valid' } | Set-ObjectValue `
+    -Value 'Invalid' | Foreach-Object { Write-Output $_ }
+
+# Correct - Broken into readable steps
+$validPropertyObjects = Get-Objects | Where-Object { $_.Property -ieq 'Valid' }
+
+foreach ($validPropertyObject in $validPropertyObjects)
+{
+    $propertySetResult = Set-ObjectValue $validPropertyObject -Value 'Invalid'
+    Write-Output $propertySetResult
+}
+```
+
+### Type Declarations
+- **AVOID** unnecessary type declarations when type is clear from context
+- **USE** type declarations when they add clarity or are required
+
+```powershell
+# Incorrect - Unnecessary type declarations  
+[String] $myString = 'My String'
+[System.Boolean] $myBoolean = $true
+
+# Correct - Type is clear from context
+$myString = 'My String'
+$myBoolean = $true
+
+# Correct - Type declaration adds clarity
+[ValidateSet('Start', 'Stop')]
+[String] $Action = 'Start'
+```
+
+## Pester Testing Standards (DSC Community)
+
+### Test Formatting
+- **Capitalize** all Pester assertions: `It`, `Should`, `Be`
+- **Assertion messages**: Must start with "Should"  
+- **Context blocks**: Must start with "When"
+
+```powershell
+# Correct - Proper Pester formatting
+Describe 'Get-TargetResource' {
+    Context 'When called with valid parameters' {
+        It 'Should return something' {
+            Get-TargetResource @testParameters | Should -Be 'something'
+        }
+    }
+    
+    Context 'When Get-TargetResource is called' {
+        Context 'When passing default parameters' {
+            It 'Should return something' {
+                Get-TargetResource @testParameters | Should -Be 'something'  
+            }
+        }
+    }
+}
+
+# Incorrect - Wrong capitalization and messaging
+Describe 'Get-TargetResource' {
+    context 'Calling Get-TargetResource with default parameters' {  # Should start with "When"
+        it 'Something is returned' {                                # Should start with "Should"  
+            get-targetresource @testParameters | should -be 'something'  # Wrong capitalization
+        }
+    }
+}
 ```
 
 ## PSScriptAnalyzer Rules
@@ -651,6 +1433,34 @@ Main-Function
 
 ## Summary Checklist
 
+### DSC Community Standards
+- ✅ **File Encoding**: UTF-8 without BOM (ASCII for .mof files)
+- ✅ **Function Names**: PascalCase, Verb-Noun format, approved verbs only
+- ✅ **Variable Names**: camelCase for local, include scope for script/global/environment  
+- ✅ **Parameter Names**: PascalCase, descriptive (minimum 3 chars), no abbreviations
+- ✅ **Comment-based Help**: Mandatory for all functions with SYNOPSIS and PARAMETER sections
+- ✅ **Parameter Blocks**: Always present, proper formatting, [Parameter()] for all parameters
+- ✅ **Whitespace**: 4 spaces indentation, proper brace placement, spacing rules
+- ✅ **String Quotes**: Single quotes default, double quotes only for variable evaluation
+- ✅ **Keywords**: Lowercase PowerShell keywords with proper spacing
+- ✅ **Named Parameters**: Always use in function calls, splat for complex parameters
+- ✅ **Array/Hashtable**: Proper multi-line formatting with correct indentation
+
+### Security and Best Practices  
+- ✅ **No Hard-coded Names**: Use parameters/environment variables
+- ✅ **No Empty Catches**: Handle errors or use ErrorAction SilentlyContinue
+- ✅ **Null Comparisons**: `$null` on left side of comparisons
+- ✅ **Avoid Global Variables**: Use script scope or parameters instead
+- ✅ **PSCredential**: Use for all credentials, never plain text
+- ✅ **Limited Piping**: Maximum 1 pipe per line, use variables for clarity
+- ✅ **Type Declarations**: Only when necessary for clarity
+
+### Pester Testing
+- ✅ **Capitalized Assertions**: `It`, `Should`, `Be` properly capitalized
+- ✅ **Test Messages**: Start with "Should" for assertions
+- ✅ **Context Messages**: Start with "When" for context blocks
+
+### General PowerShell Standards
 - ✅ Use approved verbs
 - ✅ Include `[CmdletBinding()]`
 - ✅ Add complete comment-based help
