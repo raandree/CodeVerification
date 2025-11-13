@@ -1138,10 +1138,12 @@ $myBoolean = $true
 ## Pester Testing Standards (DSC Community)
 
 ### Test Structure Requirements
-- **Tests written in**: Pester framework
+- **Tests written in**: Pester framework (integrated with Sampler build pipeline)
 - **Development approach**: Preferably test-driven development (TDD)
-- **Module test structure**: Must follow specific folder structure
+- **Module test structure**: Must follow Sampler's folder structure
 - **Templates**: Use Sampler project Plaster templates for consistency
+- **Build integration**: Tests run automatically via `.\build.ps1 -Tasks Test`
+- **CI/CD integration**: Same test pipeline runs locally and in cloud (Azure Pipelines, GitHub Actions)
 
 #### Required Folder Structure
 ```
@@ -1432,6 +1434,13 @@ DscTest:
 
 ## PSScriptAnalyzer Rules
 
+### Sampler Integration
+Sampler provides automatic PSScriptAnalyzer integration:
+- **Build pipeline**: Runs automatically during `.\build.ps1 -Tasks Analyze`
+- **Configuration**: Uses PSScriptAnalyzerSettings.psd1 for custom rules
+- **Quality gates**: Build fails if critical violations found
+- **CI/CD**: Same analysis runs locally and in cloud pipelines
+
 ### Critical Rules
 - **PSAvoidUsingCmdletAliases**: Never use aliases in scripts (use `Get-ChildItem`, not `gci` or `dir`)
 - **PSAvoidUsingWriteHost**: Avoid `Write-Host` except for interactive scripts
@@ -1471,75 +1480,348 @@ function Remove-Example {
 
 ## Module Development with Sampler
 
-### Module Structure
+### What is Sampler?
+[Sampler](https://github.com/gaelcolas/Sampler) is a comprehensive PowerShell module scaffolding and build framework that provides:
+- **Project Templates**: Plaster templates for PowerShell modules, DSC resources, and classes
+- **Build Pipeline**: Local and CI/CD build automation using InvokeBuild
+- **Quality Assurance**: Integrated PSScriptAnalyzer linting and Pester testing
+- **Publishing**: Automated publishing to PowerShell Gallery and GitHub releases
+- **Dependency Management**: Automatic resolution via RequiredModules.psd1
+- **Version Control**: Automated versioning using GitVersion
+- **Documentation**: Automatic generation of module documentation
+- **Changelog**: Automated changelog management
+
+### Sampler Project Structure
 When using Sampler for module scaffolding:
 
 ```
 ModuleName/
-├── source/
-│   ├── Classes/           # PowerShell classes
-│   ├── Private/          # Private functions (not exported)
-│   ├── Public/           # Public functions (exported)
-│   ├── en-US/           # Help files
-│   ├── ModuleName.psd1  # Module manifest
-│   └── ModuleName.psm1  # Root module
-├── tests/
-│   └── Unit/            # Pester tests
-├── build.ps1            # Build script
-├── build.yaml           # Sampler build configuration
-└── RequiredModules.psd1 # Module dependencies
+├── source/                    # Source code
+│   ├── Classes/              # PowerShell classes (if any)
+│   ├── Private/              # Private functions (not exported)
+│   ├── Public/               # Public functions (exported)
+│   ├── en-US/               # Help files and localization
+│   ├── ModuleName.psd1      # Module manifest
+│   └── ModuleName.psm1      # Root module file
+├── tests/                    # Pester tests
+│   ├── Unit/                # Unit tests
+│   └── Integration/         # Integration tests
+├── output/                   # Built module (auto-generated)
+├── docs/                     # Documentation (auto-generated)
+├── build.ps1                # Local build script
+├── build.yaml               # Sampler build configuration
+├── RequiredModules.psd1     # Build and test dependencies
+├── GitVersion.yml           # Versioning configuration
+└── CHANGELOG.md             # Auto-maintained changelog
 ```
 
-### Public vs Private Functions
-- **Public**: Functions in `Public/` folder are exported and available to users
-- **Private**: Functions in `Private/` folder are internal helpers
+### Build Pipeline Features
+
+#### Local Build with InvokeBuild
+Sampler uses InvokeBuild for consistent build experiences:
 
 ```powershell
-# Public function (source/Public/Get-Example.ps1)
-function Get-Example {
-    [CmdletBinding()]
-    param()
-    
-    # Can call private functions
-    $internal = Get-InternalData
-    Process-Data -Data $internal
-}
+# Full build pipeline (clean, build, test, package)
+.\build.ps1
 
-# Private function (source/Private/Get-InternalData.ps1)
-function Get-InternalData {
-    [CmdletBinding()]
-    param()
-    
-    # Internal implementation
-}
+# Specific build tasks
+.\build.ps1 -Tasks Clean
+.\build.ps1 -Tasks Build
+.\build.ps1 -Tasks Test
+.\build.ps1 -Tasks Pack
+
+# Build with specific configuration
+.\build.ps1 -ResolveDependency -Tasks Test
 ```
 
-### Module Manifest Best Practices
+#### CI/CD Integration
+The same build pipeline runs locally and in CI/CD systems:
+- **Azure Pipelines**: Uses azure-pipelines.yml
+- **GitHub Actions**: Uses .github/workflows/ 
+- **AppVeyor**: Uses appveyor.yml
+- **Consistent**: Same build.ps1 script across all platforms
+
+#### Build Configuration (build.yaml)
+```yaml
+# Example Sampler build configuration
+ModuleName: 'MyModule'
+CopyPaths:
+  - en-US
+  - DSCResources
+Encoding: UTF8
+VersionedOutputDirectory: true
+
+Pester:
+  OutputFormat: NUnitXML
+  ExcludeFromCodeCoverage:
+    - Modules
+  Script:
+    - tests/Unit
+  ExcludeTag: []
+  Tag: []
+  CodeCoverageThreshold: 85
+
+DscTest:
+  ExcludeTag:
+    - 'Common Tests - New Error-Level Script Analyzer Rules'
+
+GitHubConfig:
+  GitHubFilesToAdd:
+    - 'CHANGELOG.md'
+  ReleaseAssets:
+    - output/MyModule_*.zip
+  GitHubConfigUserName: 'username'
+  GitHubConfigUserEmail: 'email@example.com'
+```
+
+### Quality Assurance Integration
+
+#### PSScriptAnalyzer Integration
+- **Automatic linting**: Runs as part of build pipeline
+- **Configurable rules**: Via PSScriptAnalyzerSettings.psd1
+- **Quality gates**: Build fails if critical rules violated
+- **Custom rules**: Support for organization-specific rules
+
+```yaml
+# PSScriptAnalyzer configuration in build.yaml
+PSScriptAnalyzer:
+  ExcludeRules:
+    - PSUseShouldProcessForStateChangingFunctions
+  CustomRulePath: 
+    - PSScriptAnalyzerSettings.psd1
+```
+
+#### Pester Test Integration  
+- **Automatic test discovery**: Finds and runs all .Tests.ps1 files
+- **Code coverage**: Built-in coverage reporting
+- **Multiple formats**: NUnit XML, JaCoCo, and others
+- **Parallel execution**: Faster test runs
+- **Quality gates**: Configurable coverage thresholds
+
+### Dependency Management
+
+#### RequiredModules.psd1
+Automatic resolution of build and runtime dependencies:
+
 ```powershell
-# ModuleName.psd1
+# Example RequiredModules.psd1
 @{
-    RootModule = 'ModuleName.psm1'
-    ModuleVersion = '1.0.0'
-    GUID = '<generate-new-guid>'
-    Author = 'Your Name'
-    CompanyName = 'Company'
-    Copyright = '(c) 2025. All rights reserved.'
-    Description = 'Module description'
-    PowerShellVersion = '5.1'
+    # Build dependencies
+    'InvokeBuild' = @{
+        Version = '5.8.4'
+        Repository = 'PSGallery'
+    }
+    'Pester' = @{
+        Version = '5.3.1'
+        Repository = 'PSGallery'
+    }
+    'PSScriptAnalyzer' = @{
+        Version = '1.20.0'
+        Repository = 'PSGallery'
+    }
     
-    # Functions to export (managed by Sampler)
-    FunctionsToExport = @('Get-Example', 'Set-Example')
-    
-    # Private data
-    PrivateData = @{
-        PSData = @{
-            Tags = @('Tag1', 'Tag2')
-            LicenseUri = 'https://github.com/user/repo/blob/main/LICENSE'
-            ProjectUri = 'https://github.com/user/repo'
-            ReleaseNotes = 'See CHANGELOG.md'
-        }
+    # Runtime dependencies (added to module manifest)
+    'PSDscResources' = @{
+        Version = '2.12.0'
+        Repository = 'PSGallery'
     }
 }
+```
+
+#### Dependency Resolution Commands
+```powershell
+# Resolve all dependencies
+.\build.ps1 -ResolveDependency
+
+# Bootstrap build environment
+.\build.ps1 -Bootstrap
+
+# Clean dependency cache  
+.\build.ps1 -Tasks Clean -PesterPath './tests'
+```
+
+### Automated Publishing
+
+#### PowerShell Gallery Publishing
+- **Automatic publishing**: On tagged releases
+- **API key management**: Secure handling of gallery API keys
+- **Version management**: Prevents duplicate versions
+- **Metadata validation**: Ensures proper module metadata
+
+#### GitHub Release Management
+- **Release creation**: Automatic GitHub releases
+- **Asset attachment**: Adds module packages to releases
+- **Release notes**: Generated from CHANGELOG.md
+- **Tag management**: Coordinates with GitVersion
+
+#### Publishing Configuration
+```yaml
+# Publishing settings in build.yaml
+GitHubConfig:
+  ReleaseAssets:
+    - output/MyModule_*.zip
+    - output/MyModule.nupkg
+  
+PSGallery:
+  PublishOnRelease: true
+  ApiKeySecret: 'PSGalleryApiKey'
+```
+
+### Version Management with GitVersion
+
+#### Semantic Versioning
+- **Automatic versioning**: Based on git history and tags
+- **Semantic versioning**: Follows SemVer (Major.Minor.Patch)
+- **Branch-based**: Different versioning for feature/hotfix branches
+- **Metadata**: Includes git commit information
+
+#### GitVersion Configuration (GitVersion.yml)
+```yaml
+mode: ContinuousDelivery
+branches:
+  master:
+    mode: ContinuousDelivery
+    tag: ''
+    increment: Patch
+  develop:
+    mode: ContinuousDeployment
+    tag: alpha
+    increment: Minor
+  feature:
+    mode: ContinuousDeployment
+    tag: useBranchName
+    increment: Inherit
+```
+
+#### Version Commands
+```powershell
+# Show current version information
+gitversion
+
+# Update version in module manifest
+.\build.ps1 -Tasks UpdateVersion
+
+# Create release tag
+git tag v1.2.3
+git push origin v1.2.3
+```
+
+### Changelog Management
+
+#### Automatic Changelog
+- **Keep a Changelog**: Follows keepachangelog.com format
+- **Auto-updates**: Updates changelog during build process
+- **Release notes**: Generates release notes from changelog
+- **Integration**: Works with GitHub releases and PowerShell Gallery
+
+#### Changelog Format
+```markdown
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## [Unreleased]
+
+### Added
+- New feature description
+
+### Changed
+- Changed feature description
+
+### Fixed
+- Bug fix description
+
+## [1.2.3] - 2025-11-13
+
+### Added
+- Initial release
+```
+
+### Documentation Generation
+
+#### Automatic Documentation
+- **Help generation**: Creates external help files from comment-based help
+- **Markdown docs**: Generates markdown documentation for GitHub
+- **Wiki updates**: Can update GitHub wiki automatically
+- **API documentation**: Creates comprehensive API reference
+
+#### Documentation Configuration
+```yaml
+# Documentation settings in build.yaml
+Docs:
+  Generate: true
+  Path: './docs'
+  Format: 'Markdown'
+  UpdateWiki: true
+  
+Help:
+  Generate: true
+  Path: './en-US'
+  Format: 'XML'
+```
+
+### Getting Started with Sampler
+
+#### Creating New Module
+```powershell
+# Install Sampler
+Install-Module -Name Sampler -Repository PSGallery
+
+# Create new module from template
+$samplerModule = @{
+    DestinationPath   = 'C:\Source\MyNewModule'
+    ModuleType        = 'SimpleModule'  # or 'CompleteModule', 'dsccommunity'
+    ModuleName        = 'MyNewModule'
+    ModuleAuthor      = 'Your Name'
+    ModuleDescription = 'Description of my module'
+}
+New-SampleModule @samplerModule
+
+# Navigate and initialize
+cd 'C:\Source\MyNewModule'
+.\build.ps1 -ResolveDependency -Tasks Build
+```
+
+#### Common Sampler Tasks
+```powershell
+# Development workflow
+.\build.ps1 -Tasks Clean, Build, Test
+
+# Full quality pipeline
+.\build.ps1 -Tasks Clean, Build, Test, Analyze, Pack
+
+# Release workflow  
+.\build.ps1 -Tasks Clean, Build, Test, Pack, Publish
+
+# Documentation only
+.\build.ps1 -Tasks Docs
+
+# Dependency management
+.\build.ps1 -ResolveDependency
+```
+
+### Integration with Existing Projects
+
+#### Retrofitting Existing Modules
+Sampler can be added to existing PowerShell modules:
+
+```powershell
+# Add Sampler to existing project
+Install-Module Sampler
+Import-Module Sampler
+
+# Initialize Sampler in existing module
+Add-SamplerToBuild -ProjectPath $PWD
+```
+
+#### Migration Checklist
+- ✅ Move source files to `source/` folder structure  
+- ✅ Create `build.yaml` configuration
+- ✅ Add `RequiredModules.psd1` for dependencies
+- ✅ Configure `GitVersion.yml` for versioning
+- ✅ Set up CI/CD pipeline files
+- ✅ Update `.gitignore` for Sampler artifacts
+- ✅ Test build pipeline locally before committing
 ```
 
 ## Performance Best Practices
@@ -1692,6 +1974,17 @@ Main-Function
 - Avoid platform-specific features unless necessary
 
 ## Summary Checklist
+
+### Sampler Framework (Recommended)
+- ✅ **Project Structure**: Use Sampler's source/, tests/, docs/ folder structure
+- ✅ **Build Pipeline**: Implement `.\build.ps1` with InvokeBuild tasks
+- ✅ **Dependencies**: Use RequiredModules.psd1 for dependency management
+- ✅ **Versioning**: Configure GitVersion.yml for semantic versioning
+- ✅ **CI/CD Integration**: Set up Azure Pipelines or GitHub Actions
+- ✅ **Publishing**: Configure automatic PowerShell Gallery and GitHub publishing
+- ✅ **Documentation**: Enable automatic help and markdown documentation generation
+- ✅ **Changelog**: Use automated changelog management with CHANGELOG.md
+- ✅ **Quality Gates**: Configure PSScriptAnalyzer and Pester thresholds in build.yaml
 
 ### DSC Community Standards
 - ✅ **File Encoding**: UTF-8 without BOM (ASCII for .mof files)
