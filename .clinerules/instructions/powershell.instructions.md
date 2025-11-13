@@ -1137,6 +1137,40 @@ $myBoolean = $true
 
 ## Pester Testing Standards (DSC Community)
 
+### Test Structure Requirements
+- **Tests written in**: Pester framework
+- **Development approach**: Preferably test-driven development (TDD)
+- **Module test structure**: Must follow specific folder structure
+- **Templates**: Use Sampler project Plaster templates for consistency
+
+#### Required Folder Structure
+```
+tests/
+├── Unit/                    # Unit tests for each resource
+│   └── DSC_ResourceName.Tests.ps1
+└── Integration/            # Integration tests when possible
+    └── DSC_ResourceName.integration.Tests.ps1
+```
+
+#### File Naming Conventions
+- **Unit tests**: `DSC_<ResourceName>.Tests.ps1`
+- **Integration tests**: `DSC_<ResourceName>.integration.Tests.ps1`
+- **Configuration files**: `DSC_<ResourceName>.config.ps1` (for integration tests)
+
+### Test Categories
+
+#### Unit Tests
+- **Purpose**: Test individual functions in isolation
+- **Scope**: All DSC resource functions (Get/Set/Test-TargetResource)
+- **Requirements**: Must exist for every DSC resource
+- **Dependencies**: Use mocking for external dependencies
+
+#### Integration Tests  
+- **Purpose**: Test complete functionality in realistic scenarios
+- **Scope**: End-to-end testing of DSC resources
+- **Requirement**: Should be created when possible
+- **Limitations**: May not be possible if testing would damage system configuration
+
 ### Test Formatting
 - **Capitalize** all Pester assertions: `It`, `Should`, `Be`
 - **Assertion messages**: Must start with "Should"  
@@ -1168,6 +1202,232 @@ Describe 'Get-TargetResource' {
         }
     }
 }
+```
+
+### Advanced Testing Patterns
+
+#### Testing Private Functions
+Use `InModuleScope` to test non-exported functions:
+
+```powershell
+InModuleScope $script:dscResourceName {
+    Describe "$($script:dscResourceName)\Get-FirewallRuleProperty" {
+        Context 'When testing private function' {
+            It 'Should return expected result' {
+                Get-FirewallRuleProperty -Name 'TestProperty' | Should -Not -BeNullOrEmpty
+            }
+        }
+    }
+}
+```
+
+#### Accessing Module Variables in Tests
+Three approaches for accessing module-scoped variables like `$script:localizedData`:
+
+```powershell
+# Method 1: Run tests inside InModuleScope
+InModuleScope $script:dscResourceName {
+    It 'Should throw correct error message' {
+        {
+            Set-TargetResource @setTargetResourceParameters
+        } | Should -Throw $script:localizedData.DatabaseMailDisabled
+    }
+}
+
+# Method 2: Copy variable into test scope
+$localizedData = InModuleScope $script:dscResourceName {
+    $script:localizedData
+}
+
+# Method 3: Export variables in module
+Export-ModuleMember -Function *-TargetResource -Variables LocalizedData
+```
+
+#### Mock Output Variables Pattern
+For variables used in mocks within `InModuleScope`:
+
+```powershell
+# Create script block variables for mocks
+$GetNetAdapter_PhysicalNetAdapterMock = {
+    return @{
+        Name              = 'Ethernet'
+        PhysicalMediaType = '802.3'
+        Status            = 'Up'
+    }
+}
+
+# Use in mock
+Mock `
+    -CommandName Get-NetAdapter `
+    -ModuleName $script:ModuleName `
+    -MockWith $GetNetAdapter_PhysicalNetAdapterMock
+```
+
+### Test Organization Patterns
+
+#### Pattern 1: Function-Based Organization
+```powershell
+Describe 'Get-TargetResource' {
+    Context 'When called with valid parameters' {
+        It 'Should return expected properties' {
+            # Test implementation
+        }
+    }
+}
+
+Describe 'Set-TargetResource' {
+    Context 'When system is not in desired state' {
+        It 'Should configure the resource correctly' {
+            # Test implementation
+        }
+    }
+}
+
+Describe 'Test-TargetResource' {
+    Context 'When system is in desired state' {
+        It 'Should return true' {
+            # Test implementation
+        }
+    }
+}
+```
+
+#### Pattern 2: State-Based Organization (Recommended)
+```powershell
+Describe 'The system is not in the desired state' {
+    # Mock cmdlets for non-desired state
+    Mock Get-Service { return @{ Status = 'Stopped' } }
+    
+    $testParameters = @{
+        Name = 'TestService'
+        State = 'Running'
+    }
+
+    It 'Should return current state' {
+        $result = Get-TargetResource @testParameters
+        $result.State | Should -Be 'Stopped'
+    }
+
+    It 'Should return false from test' {
+        Test-TargetResource @testParameters | Should -Be $false
+    }
+
+    It 'Should start the service' {
+        Set-TargetResource @testParameters
+        Assert-MockCalled Start-Service
+    }
+}
+
+Describe 'The system is in the desired state' {
+    # Mock cmdlets for desired state
+    Mock Get-Service { return @{ Status = 'Running' } }
+    
+    $testParameters = @{
+        Name = 'TestService'
+        State = 'Running'
+    }
+
+    It 'Should return current state' {
+        $result = Get-TargetResource @testParameters
+        $result.State | Should -Be 'Running'
+    }
+
+    It 'Should return true from test' {
+        Test-TargetResource @testParameters | Should -Be $true
+    }
+}
+```
+
+### Localization Testing
+
+#### Testing Localized Error Messages
+Use helper functions to test localized messages:
+
+```powershell
+# Helper function for invalid argument errors
+$errorRecord = Get-InvalidArgumentRecord `
+    -Message ($script:localizedData.InterfaceNotAvailableError -f $interfaceAlias) `
+    -ArgumentName 'Interface'
+
+It 'Should throw an InterfaceNotAvailable error' {
+    { Assert-ResourceProperty @testRoute } | Should -Throw $errorRecord
+}
+
+# Helper function for invalid operation errors  
+$errorRecord = Get-InvalidOperationRecord `
+    -Message ($script:localizedData.NetAdapterNotFoundError)
+
+It 'Should throw the correct exception' {
+    {
+        $script:result = Find-NetworkAdapter -Name 'NoMatch'
+    } | Should -Throw $errorRecord
+}
+```
+
+### Running Tests
+
+#### Local Testing Requirements
+1. **Resolve dependencies** first
+2. **Build module** before testing
+3. **Re-build** after any source file changes (tests run against built module)
+
+#### Test Execution Commands
+```powershell
+# Run all tests
+.\build.ps1 -Tasks test
+
+# Run only unit tests with coverage
+.\build.ps1 -Tasks test -PesterScript 'tests/Unit'
+
+# Run only integration tests without coverage
+.\build.ps1 -Tasks test -PesterScript 'tests/Integration' -CodeCoverageThreshold 0
+```
+
+#### Important Notes
+- Tests always run against the **built module** in 'output' folder, not source files
+- **Known Issue**: Common modules may need manual removal between test runs: `Remove-Module -Name 'ModuleName'`
+- Integration tests may temporarily disrupt system configuration
+
+### Test Configuration and Opt-Outs
+
+#### HQRM Tests
+- High Quality Resource Module tests from [DscResource.Test](https://github.com/dsccommunity/DscResource.Test)
+- Automatically included by default
+- Updated independently - check changelog for updates
+
+#### Opting Out of Tests
+Configure in `build.yaml` when tests cannot be resolved:
+
+```yaml
+# Opt-out from specific unit test tags
+Pester:
+  ExcludeTag:
+    - 'TagOnUnitTest'
+
+# Opt-out from HQRM tests  
+DscTest:
+  ExcludeTag:
+    - 'Common Tests - New Error-Level Script Analyzer Rules'
+    - 'Common Tests - Validate Example Files'
+    - 'Common Tests - Relative Path Length'
+```
+
+#### Default Opt-Outs
+- **"New Error-Level Script Analyzer Rules"**: Opt-out by default (tests PSDSCDscExamplesPresent and PSDSCDscTestsPresent rules)
+- Still runs but won't fail the test phase
+- Shows as yellow (skipped) if violations, green (passed) if no violations
+
+### Best Practices Summary
+- ✅ Follow TDD approach when possible
+- ✅ Use Sampler templates for consistency
+- ✅ Test both desired and non-desired states
+- ✅ Mock external dependencies appropriately
+- ✅ Test localized error messages
+- ✅ Use proper Pester formatting and naming
+- ✅ Organize tests by system state rather than just function
+- ✅ Build module before testing
+- ✅ Run tests locally before committing
+- ✅ Create integration tests when safe to do so
 ```
 
 ## PSScriptAnalyzer Rules
@@ -1456,9 +1716,21 @@ Main-Function
 - ✅ **Type Declarations**: Only when necessary for clarity
 
 ### Pester Testing
+- ✅ **Test Structure**: Follow required folder structure (tests/Unit, tests/Integration)
+- ✅ **File Naming**: Use DSC_ResourceName.Tests.ps1 and DSC_ResourceName.integration.Tests.ps1
 - ✅ **Capitalized Assertions**: `It`, `Should`, `Be` properly capitalized
 - ✅ **Test Messages**: Start with "Should" for assertions
 - ✅ **Context Messages**: Start with "When" for context blocks
+- ✅ **TDD Approach**: Use test-driven development when possible
+- ✅ **State-Based Testing**: Organize tests by system state (desired/non-desired)
+- ✅ **InModuleScope**: Use for testing private functions and accessing module variables
+- ✅ **Mocking**: Proper mocking patterns for external dependencies
+- ✅ **Localization**: Test localized error messages with helper functions
+- ✅ **Build Before Test**: Always build module before running tests
+- ✅ **Local Testing**: Run all tests locally before committing
+- ✅ **Integration Tests**: Create when safe and possible
+- ✅ **HQRM Tests**: Use High Quality Resource Module tests
+- ✅ **Test Coverage**: Ensure adequate coverage for all functions
 
 ### General PowerShell Standards
 - ✅ Use approved verbs
