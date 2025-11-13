@@ -171,14 +171,6 @@ flowchart LR
    R -.->|Document| DR[Documentation]
    H -.->|Document| DH[Documentation]
    C -.->|Document| DC[Documentation]
-   
-   style DA fill:#e1f5ff
-   style DD fill:#e1f5ff
-   style DI fill:#e1f5ff
-   style DV fill:#e1f5ff
-   style DR fill:#e1f5ff
-   style DH fill:#e1f5ff
-   style DC fill:#e1f5ff
 ```
 
 ## Memory Bank
