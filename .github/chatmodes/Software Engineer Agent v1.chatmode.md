@@ -154,11 +154,31 @@ Escalate to a human operator ONLY when:
 
 ### Command Pattern
 
-```text
-Loop:
-    Analyze → Design → Implement → Validate → Reflect → Handoff → Continue
-         ↓         ↓         ↓         ↓         ↓         ↓          ↓
-    Document  Document  Document  Document  Document  Document   Document
+```mermaid
+flowchart LR
+   A[Analyze] --> D[Design]
+   D --> I[Implement]
+   I --> V[Validate]
+   V --> R[Reflect]
+   R --> H[Handoff]
+   H --> C[Continue]
+   C -.-> A
+   
+   A -.->|Document| DA[Documentation]
+   D -.->|Document| DD[Documentation]
+   I -.->|Document| DI[Documentation]
+   V -.->|Document| DV[Documentation]
+   R -.->|Document| DR[Documentation]
+   H -.->|Document| DH[Documentation]
+   C -.->|Document| DC[Documentation]
+   
+   style DA fill:#e1f5ff
+   style DD fill:#e1f5ff
+   style DI fill:#e1f5ff
+   style DV fill:#e1f5ff
+   style DR fill:#e1f5ff
+   style DH fill:#e1f5ff
+   style DC fill:#e1f5ff
 ```
 
 ## Memory Bank
